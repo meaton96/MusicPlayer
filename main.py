@@ -12,10 +12,12 @@ from PIL import Image, ImageTk
 import time
 
 
+# configure the scroll region
 def configure_frame(canvas):
     canvas.configure(scrollregion=canvas.bbox("all"))
 
 
+# display the info box to tell the user how to use the program
 def display_info_box():
     info = "Use the Folder button (Bottom Left) To open a folder\n" \
            "Click a song to select, Play to play the song\n" \
