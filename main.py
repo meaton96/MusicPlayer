@@ -6,8 +6,22 @@ from pygame import mixer
 import tkinter as tk
 import tkinter.filedialog
 from tkinter import ttk
+from tkinter import messagebox
 import os
 from PIL import Image, ImageTk
+
+
+def configure_frame(canvas):
+    canvas.configure(scrollregion=canvas.bbox("all"))
+
+
+def display_info_box():
+    info = "Use the Folder button (Bottom Left) To open a folder\n" \
+           "Click a song to select, Play to play the song\n" \
+           "Can also play a song by double clicking it\n" \
+           "Next and Previous buttons function as well as mute button and volume slider\n" \
+           "Hitting the play button when a new song has been selected will auto play the new song"
+    messagebox.showinfo("Info", info)
 
 
 class MusicGUI:
@@ -23,6 +37,7 @@ class MusicGUI:
         self.open_folder_button = None
         self.pause_button = None
         self.volume_slider = None
+        self.info_button = None
         self.cur_vol = 100
         self.previous_vol = 0
 
@@ -45,35 +60,40 @@ class MusicGUI:
         self.PLAY = "Play"
 
         # create basic frames
-        self.song_list_frame = tk.Frame(self.main_window, width=80, height=self.main_window.winfo_height(),
-                                        name="song_frame", bd=-2)
+        self.song_canvas = tk.Canvas(self.main_window, bd=-2, background="#FFFFFF", name="song_canvas")
+        self.song_list_frame = tk.Frame(self.song_canvas,
+                                        name="song_frame", pady=2, padx=2, bg="#FFFFFF")
+        # self.song_list_frame.config(highlightcolor="#000000", highlightbackground="#000000", highlightthickness=2)
+        # self.song_list_frame.pack_propagate(False)
 
         self.button_frame = tk.Frame(self.main_window, bg="#33964e", width=100, height=60)
         self.button_canvas = tk.Canvas(self.button_frame, width=self.WIDTH - 100,
                                        height=60, bg="#33964e", bd=-2)
-
+        # create bottom and top Canvas
         self.button_canvas.grid(row=0, column=0)
-
-        self.top_canvas = tk.Canvas(self.song_list_frame, width=self.WIDTH, height=30, bd=-2)
+        self.top_canvas = tk.Canvas(self.main_window, width=self.WIDTH, height=30, bd=-2)
 
         self.create_buttons()
+
+        self.song_scroll = ttk.Scrollbar(self.main_window, orient="vertical", command=self.song_canvas.yview)
+        self.song_canvas.configure(yscrollcommand=self.song_scroll.set)
 
         # empty directory label
         self.empty_label_text = tk.StringVar()
         self.empty_label_text.set("Nothing is here\nOpen a Folder! (Bottom Left)")
-        self.empty_label = tk.Label(self.song_list_frame, textvariable=self.empty_label_text)
+        self.empty_label = tk.Label(self.song_list_frame, textvariable=self.empty_label_text, bg="#FFFFFF")
         self.is_empty_dir = True
 
         # pack widgets
-
-        # self.open_folder_button
-
-        # pack frames
-        # self.button_canvas.pack()
         self.top_canvas.pack()
         self.empty_label.pack()
         self.song_list_frame.pack()
         self.button_frame.pack(side="bottom")
+        self.song_scroll.pack(side="right", fill="y")
+        self.song_canvas.pack(side="left", fill="both", expand=True)
+        self.song_canvas.create_window((0, 0), window=self.song_list_frame, anchor="nw")
+
+        self.song_list_frame.bind("<Configure>", lambda e, canvas=self.song_canvas: configure_frame(self.song_canvas))
 
         tk.mainloop()
 
@@ -114,12 +134,16 @@ class MusicGUI:
                                                  command=self.prev_song, state=tk.NORMAL)
 
         icon_path = os.path.join(path, "icons\\next_button_icon.png")
-        self.next_button = TransparentButton(self.button_canvas, center_x + 35,  19, 30, 30, image_path=icon_path,
+        self.next_button = TransparentButton(self.button_canvas, center_x + 35, 19, 30, 30, image_path=icon_path,
                                              command=self.next_song, state=tk.NORMAL)
-        
+
         icon_path = os.path.join(path, "icons\\volume_icon.png")
         self.mute_button = TransparentButton(self.button_canvas, 660, 19, 30, 30,
                                              image_path=icon_path, command=self.mute, state=tk.NORMAL)
+
+        icon_path = os.path.join(path, "icons\\info_icon.png")
+        self.info_button = TransparentButton(self.top_canvas, 750, 2, 25, 25, image_path=icon_path,
+                                             command=display_info_box, state=tk.NORMAL)
 
     # change the volume based on the slider value
     def change_volume(self, vol):
@@ -158,6 +182,7 @@ class MusicGUI:
     # play the next song in the queue
     def next_song(self):
         self.skip_song(1)
+
     # play the previous song in the queue
     def prev_song(self):
         self.skip_song(-1)
@@ -238,7 +263,7 @@ class MusicGUI:
             # remove the name of the frame to isolate the song number
             # set the song choice to the song from the song list based on the number
             self.song_choice = self.song_list[
-                int(str(widget).strip(".song_frame."))]
+                int(str(widget).strip("canvas.song_frame."))]
 
 
 #
