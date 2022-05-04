@@ -9,6 +9,7 @@ from tkinter import ttk
 from tkinter import messagebox
 import os
 from PIL import Image, ImageTk
+import time
 
 
 def configure_frame(canvas):
@@ -45,6 +46,7 @@ class MusicGUI:
         mixer.init()
         self.main_window = tk.Tk(className="Music Player")
         self.main_window.geometry("800x600")
+        self.main_window.resizable(False, False)
 
         self.WIDTH = 800
 
@@ -55,6 +57,7 @@ class MusicGUI:
         self.song_list = []
         self.current_song = ""
         self.is_playing_song = False
+        self.paused = False
 
         self.PAUSE = "Pause"
         self.PLAY = "Play"
@@ -63,8 +66,6 @@ class MusicGUI:
         self.song_canvas = tk.Canvas(self.main_window, bd=-2, background="#FFFFFF", name="song_canvas")
         self.song_list_frame = tk.Frame(self.song_canvas,
                                         name="song_frame", pady=2, padx=2, bg="#FFFFFF")
-        # self.song_list_frame.config(highlightcolor="#000000", highlightbackground="#000000", highlightthickness=2)
-        # self.song_list_frame.pack_propagate(False)
 
         self.button_frame = tk.Frame(self.main_window, bg="#33964e", width=100, height=60)
         self.button_canvas = tk.Canvas(self.button_frame, width=self.WIDTH - 100,
@@ -81,8 +82,14 @@ class MusicGUI:
         # empty directory label
         self.empty_label_text = tk.StringVar()
         self.empty_label_text.set("Nothing is here\nOpen a Folder! (Bottom Left)")
-        self.empty_label = tk.Label(self.song_list_frame, textvariable=self.empty_label_text, bg="#FFFFFF")
+        self.empty_label = tk.Label(self.song_list_frame, textvariable=self.empty_label_text, bg="#FFFFFF", padx=300,
+                                    pady=200)
         self.is_empty_dir = True
+
+        # create song info bar
+        self.song_length = tk.StringVar()
+        self.info_bar = tk.Label(self.main_window, textvariable=self.song_length, bd=1, bg="#33964e", anchor=tk.E)
+        self.info_bar.pack(fill="x", side="bottom")
 
         # pack widgets
         self.top_canvas.pack()
@@ -93,6 +100,7 @@ class MusicGUI:
         self.song_canvas.pack(side="left", fill="both", expand=True)
         self.song_canvas.create_window((0, 0), window=self.song_list_frame, anchor="nw")
 
+        # bind the scroll bar to the song canvas
         self.song_list_frame.bind("<Configure>", lambda e, canvas=self.song_canvas: configure_frame(self.song_canvas))
 
         tk.mainloop()
@@ -145,6 +153,23 @@ class MusicGUI:
         self.info_button = TransparentButton(self.top_canvas, 750, 2, 25, 25, image_path=icon_path,
                                              command=display_info_box, state=tk.NORMAL)
 
+    def get_song_length(self):
+        # get song time
+        current_time = mixer.music.get_pos() / 1000
+
+        # convert to time format
+        time_text = time.strftime("%M:%S", time.gmtime(current_time))
+
+        # output to screen
+        self.song_length.set(time_text)
+
+        # update time
+        self.info_bar.after(500, self.get_song_length)
+
+        # play next song if this one is finished
+        if not self.paused and not mixer.music.get_busy():
+            self.next_song()
+
     # change the volume based on the slider value
     def change_volume(self, vol):
         mixer.music.set_volume(float(vol) / 100)
@@ -173,10 +198,11 @@ class MusicGUI:
 
         # set the current song choice to the new song
         # generate an event as if that song was clicked on to easily move song hi-light indicator
-        # call pause_song() to being playing the new song
+        # call pause_song() to begin playing the new song
         self.song_choice = self.song_list[current_song]
         self.song_labels[current_song].event_generate("<Button-1>")
         self.is_playing_song = False
+        self.paused = False
         self.pause_song()
 
     # play the next song in the queue
@@ -192,6 +218,7 @@ class MusicGUI:
         if not self.is_empty_dir:
             if self.is_playing_song:
                 mixer.music.pause()
+                self.paused = True
                 self.pause_button.set_state(tk.HIDDEN)
                 self.play_button.set_state(tk.NORMAL)
                 self.is_playing_song = False
@@ -204,7 +231,9 @@ class MusicGUI:
                     song_path = os.path.join(self.directory, self.song_choice)
                     mixer.music.load(song_path)
                     mixer.music.play()
+                    self.get_song_length()
                     self.current_song = self.song_choice
+                self.paused = False
                 self.pause_button.set_state(tk.NORMAL)
                 self.play_button.set_state(tk.HIDDEN)
                 self.is_playing_song = True
@@ -266,38 +295,21 @@ class MusicGUI:
                 int(str(widget).strip("canvas.song_frame."))]
 
 
-#
-#
-#
+# draws a button on a canvas, used to create an icon button that can be clicked on
 class TransparentButton:
-    # flash_delay = 100  # Milliseconds.
 
     def __init__(self, canvas, x, y, width, height, image_path, command, state):
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
-        self.command = command
         self.canvas = canvas
         self.image = Image.open(image_path)
         resized_image = self.image.resize((width, height), Resampling.LANCZOS)
         self.btn_image = ImageTk.PhotoImage(resized_image)
-        self.canvas_btn_img_obj = canvas.create_image(x, y, anchor='nw', state=state,
-                                                      image=self.btn_image)
-        canvas.tag_bind(self.canvas_btn_img_obj, "<ButtonRelease-1>", lambda e: command())
+        self.button = canvas.create_image(x, y, anchor='nw', state=state,
+                                          image=self.btn_image)
+        canvas.tag_bind(self.button, "<ButtonRelease-1>", lambda e: command())
 
-    def change_icon(self, image_path):
-        self.image = Image.open(image_path)
-        resized_image = self.image.resize((self.width, self.height), Resampling.LANCZOS)
-        self.btn_image = ImageTk.PhotoImage(resized_image)
-        self.canvas_btn_img_obj.config(image=self.btn_image)
-
-    # def flash(self):
-    #    self.set_state(tk.HIDDEN)
-    #   self.canvas.after(self.flash_delay, self.set_state, tk.NORMAL)
-
+    # used to hide or show the button
     def set_state(self, state):
-        self.canvas.itemconfigure(self.canvas_btn_img_obj, state=state)
+        self.canvas.itemconfigure(self.button, state=state)
 
 
 if __name__ == '__main__':
