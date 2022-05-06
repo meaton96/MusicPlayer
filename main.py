@@ -31,6 +31,7 @@ class MusicGUI:
 
     def __init__(self):
         # init buttons variables
+        self.muted_button = None
         self.mute_button = None
         self.button_frame = None
         self.next_button = None
@@ -124,36 +125,58 @@ class MusicGUI:
 
         # create TransparentButton instances with the correct icon
         icon_path = os.path.join(path, "icons\\open_folder_icon.png")
+        hover_path = os.path.join(path, "icons\\open_folder_icon_highlight.png")
         self.open_folder_button = TransparentButton(self.button_canvas, 5, 15, 50, 50, image_path=icon_path,
-                                                    command=self.open_dir, state=tk.NORMAL)
+                                                    command=self.open_dir, state=tk.NORMAL,
+                                                    highlight_path=hover_path)
 
         icon_path = os.path.join(path, "icons\\quit_icon.png")
+        hover_path = os.path.join(path, "icons\\quit_icon_highlight.png")
         self.quit_button = TransparentButton(self.top_canvas, 2, 2, 30, 30, image_path=icon_path,
-                                             command=self.main_window.destroy, state=tk.NORMAL)
+                                             command=self.main_window.destroy, state=tk.NORMAL,
+                                             highlight_path=hover_path)
 
         icon_path = os.path.join(path, "icons\\play_button_icon.png")
+        hover_path = os.path.join(path, "icons\\play_button_icon_highlight.png")
         self.play_button = TransparentButton(self.button_canvas, center_x - 25, 5, 50, 50,
-                                             image_path=icon_path, command=self.pause_song, state=tk.NORMAL)
+                                             image_path=icon_path, command=self.pause_song, state=tk.NORMAL,
+                                             highlight_path=hover_path)
 
         icon_path = os.path.join(path, "icons\\pause_button_icon.png")
+        hover_path = os.path.join(path, "icons\\pause_button_icon_highlight.png")
         self.pause_button = TransparentButton(self.button_canvas, center_x - 25, 5, 50, 50,
-                                              image_path=icon_path, command=self.pause_song, state=tk.HIDDEN)
+                                              image_path=icon_path, command=self.pause_song, state=tk.HIDDEN,
+                                              highlight_path=hover_path)
 
         icon_path = os.path.join(path, "icons\\previous_button_icon.png")
+        hover_path = os.path.join(path, "icons\\previous_button_icon_highlight.png")
         self.previous_button = TransparentButton(self.button_canvas, center_x - 60, 19, 30, 30, image_path=icon_path,
-                                                 command=self.prev_song, state=tk.NORMAL)
+                                                 command=self.prev_song, state=tk.NORMAL,
+                                                 highlight_path=hover_path)
 
         icon_path = os.path.join(path, "icons\\next_button_icon.png")
+        hover_path = os.path.join(path, "icons\\next_button_icon_highlight.png")
         self.next_button = TransparentButton(self.button_canvas, center_x + 35, 19, 30, 30, image_path=icon_path,
-                                             command=self.next_song, state=tk.NORMAL)
+                                             command=self.next_song, state=tk.NORMAL,
+                                             highlight_path=hover_path)
 
         icon_path = os.path.join(path, "icons\\volume_icon.png")
+        hover_path = os.path.join(path, "icons\\volume_icon_highlight.png")
         self.mute_button = TransparentButton(self.button_canvas, 660, 19, 30, 30,
-                                             image_path=icon_path, command=self.mute, state=tk.NORMAL)
+                                             image_path=icon_path, command=self.mute, state=tk.NORMAL,
+                                             highlight_path=hover_path)
 
         icon_path = os.path.join(path, "icons\\info_icon.png")
+        hover_path = os.path.join(path, "icons\\info_icon_highlight.png")
         self.info_button = TransparentButton(self.top_canvas, 750, 2, 25, 25, image_path=icon_path,
-                                             command=display_info_box, state=tk.NORMAL)
+                                             command=display_info_box, state=tk.NORMAL,
+                                             highlight_path=hover_path)
+
+        icon_path = os.path.join(path, "icons\\muted_icon.png")
+        hover_path = os.path.join(path, "icons\\muted_icon_highlight.png")
+        self.muted_button = TransparentButton(self.button_canvas, 660, 19, 30, 30,
+                                              image_path=icon_path, command=self.mute, state=tk.HIDDEN,
+                                              highlight_path=hover_path)
 
     def get_song_length(self):
         # get song time
@@ -182,9 +205,13 @@ class MusicGUI:
         if self.cur_vol != 0:
             self.previous_vol = self.cur_vol
             self.volume_slider.set(0)
+            self.mute_button.set_state(tk.HIDDEN)
+            self.muted_button.set_state(tk.NORMAL)
         else:
             self.cur_vol = self.previous_vol
             self.volume_slider.set(self.cur_vol * 100)
+            self.mute_button.set_state(tk.NORMAL)
+            self.muted_button.set_state(tk.HIDDEN)
 
     # move the current playing song in the specified direction
     def skip_song(self, direction):
@@ -203,8 +230,14 @@ class MusicGUI:
         # call pause_song() to begin playing the new song
         self.song_choice = self.song_list[current_song]
         self.song_labels[current_song].event_generate("<Button-1>")
-        self.is_playing_song = False
-        self.paused = False
+
+        # only play the next/previous song if play is currently unpaused
+        if self.is_playing_song:
+            self.paused = False
+            self.is_playing_song = False
+        else:
+            self.paused = True
+            self.is_playing_song = True
         self.pause_song()
 
     # play the next song in the queue
@@ -262,7 +295,7 @@ class MusicGUI:
         for fileName in files:
             self.song_list.append(fileName)
             self.song_labels.append(
-                tk.Label(self.song_list_frame, text=fileName, cursor="hand2", name=str(count), width=80,
+                tk.Label(self.song_list_frame, text=fileName, cursor="hand2", name=str(count), width=115,
                          bg="white"))
             count += 1
         # iterate the list of songs and assign tkinter event binds to them for selecting/playing
@@ -300,13 +333,23 @@ class MusicGUI:
 # draws a button on a canvas, used to create an icon button that can be clicked on
 class TransparentButton:
 
-    def __init__(self, canvas, x, y, width, height, image_path, command, state):
+    def __init__(self, canvas, x, y, width, height, image_path, command, state, highlight_path):
         self.canvas = canvas
+        # create button image
         self.image = Image.open(image_path)
         resized_image = self.image.resize((width, height), Resampling.LANCZOS)
         self.btn_image = ImageTk.PhotoImage(resized_image)
+
+        # create button hover image
+        self.highlight_image = Image.open(highlight_path)
+        resized_highlight = self.highlight_image.resize((width, height), Resampling.LANCZOS)
+        self.btn_highlight = ImageTk.PhotoImage(resized_highlight)
+
+        # create button
         self.button = canvas.create_image(x, y, anchor='nw', state=state,
-                                          image=self.btn_image)
+                                          image=self.btn_image, activeimage=self.btn_highlight)
+
+        # bind mouse event
         canvas.tag_bind(self.button, "<ButtonRelease-1>", lambda e: command())
 
     # used to hide or show the button
